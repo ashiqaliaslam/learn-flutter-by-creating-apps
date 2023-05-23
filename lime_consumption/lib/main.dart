@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lime_consumption/time_entry.dart';
+import 'package:intl/intl.dart';
 
 void main() {
   runApp(const LimeConsumptionCalculator());
@@ -37,19 +37,13 @@ class LimeScreen extends StatefulWidget {
 
 class _LimeScreenState extends State<LimeScreen> {
   List<TimeEntry> timeEntries = [];
+  List<int> limeWeightEntries = [];
   final TextEditingController _startTimeController = TextEditingController();
   final TextEditingController _endTimeController = TextEditingController();
-  // final TextEditingController
+  final TextEditingController _limeWightController = TextEditingController();
   int? editingIndex;
 
-  void _timeEntry() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return const TimeEntryScreen();
-      },
-    );
-  }
+  int get limeWeight => int.tryParse(_limeWightController.text) ?? 0;
 
   @override
   Widget build(BuildContext context) {
@@ -63,142 +57,230 @@ class _LimeScreenState extends State<LimeScreen> {
         child: Column(
           children: [
             Text(
-              'Total Duration: 69:69 Hours',
+              'Total Duration: ${formatDuration(totalDuration())}',
               style: Theme.of(context).textTheme.headlineSmall,
             ),
+            // Text('Total Duration $totalDuration()'),
             const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _startTimeController,
+                    keyboardType: TextInputType.datetime,
+                    decoration: InputDecoration(
+                      labelText: 'Start Time',
+                      hintText: '00:00',
+                      prefixIcon: IconButton(
+                        onPressed: () {
+                          timePicker(context, _startTimeController);
+                        },
+                        icon: const Icon(Icons.access_time),
+                      ),
+                    ),
+                    onTap: () => _startTimeController,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: _endTimeController,
+                    keyboardType: TextInputType.datetime,
+                    decoration: InputDecoration(
+                      labelText: 'End Time',
+                      hintText: '23:59',
+                      prefixIcon: IconButton(
+                        onPressed: () {
+                          timePicker(context, _endTimeController);
+                        },
+                        icon: const Icon(Icons.access_time_filled),
+                      ),
+                    ),
+                    onTap: () => _endTimeController,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: _limeWightController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Lime Weight',
+                      hintText: 'Weight in Tonns',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                print(limeWeightEntries);
+                print(timeEntries);
+                if (editingIndex != null) {
+                  _updateEntries(editingIndex!);
+                }
+                _addEntries();
+              },
+              child: Text(editingIndex != null ? 'Update' : 'Calculate'),
+            ),
             Expanded(
-              child: TextField(
-                controller: _startTimeController,
-                keyboardType: TextInputType.datetime,
-                // decoration: InputDecoration(border: InputBorder(borderSide: BorderSide.strokeAlignCenter)),
-                decoration: InputDecoration(
-                    labelText: 'Start Time',
-                    hintText: '00:00',
-                    prefixIcon: IconButton(
-                      onPressed: () {},
-                      icon: const Icon(Icons.access_time),
-                    )),
-              ),
-            )
+                child: ListView.builder(
+              itemCount: timeEntries.length,
+              itemBuilder: (context, index) {
+                final timeEntry = timeEntries[index];
+                final limeEntry = limeWeightEntries[index];
+                return ListTile(
+                  title: Row(
+                    children: [
+                      Text(timeEntry.startTime),
+                      const SizedBox(width: 10),
+                      const Text('-'),
+                      const SizedBox(width: 10),
+                      Text(timeEntry.endTime),
+                      const SizedBox(width: 30),
+                      Text(limeEntry.toString()),
+                    ],
+                  ),
+                  trailing: Text(
+                      '${timeEntry.duration.inHours} hours ${timeEntry.duration.inMinutes.remainder(60)} minutes'),
+                );
+              },
+            ))
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _timeEntry,
-        tooltip: 'Add Data',
-        child: const Icon(Icons.add),
-      ),
     );
   }
-}
 
-class TimeEntryScreen extends StatefulWidget {
-  const TimeEntryScreen({super.key});
-
-  @override
-  State<TimeEntryScreen> createState() => _TimeEntryScreenState();
-}
-
-class _TimeEntryScreenState extends State<TimeEntryScreen> {
-  TextEditingController startTimeController = TextEditingController();
-  TextEditingController endTimeController = TextEditingController();
-  TextEditingController limeWeightController = TextEditingController();
-
+  // dispose all inputs
   @override
   void dispose() {
-    startTimeController.dispose();
-    endTimeController.dispose();
-    limeWeightController.dispose();
+    _startTimeController.dispose();
+    _endTimeController.dispose();
+    _limeWightController.dispose();
     super.dispose();
   }
 
+  // method for time picker
   Future<void> timePicker(
-      BuildContext context, TextEditingController controller) async {
+    BuildContext context,
+    TextEditingController controller,
+  ) async {
     final TimeOfDay? pickedTime = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.now(),
+      initialTime: controller == _startTimeController
+          ? const TimeOfDay(hour: 00, minute: 00)
+          : const TimeOfDay(hour: 00, minute: 00),
     );
     if (pickedTime != null) {
-      setState(
-        () {
-          controller.text = pickedTime.format(context);
-        },
+      if (controller == _startTimeController) {
+        controller.text = DateFormat.Hm().format(
+          DateTime(2023, 1, 1, pickedTime.hour, pickedTime.minute),
+        );
+      } else {
+        controller.text = DateFormat.Hm().format(
+          DateTime(2023, 1, 2, pickedTime.hour, pickedTime.minute),
+        );
+      }
+    }
+  }
+
+  Future<void> selectTime(TextEditingController controller) async {
+    final TimeOfDay? pickedTime = await showTimePicker(
+      context: context,
+      initialTime: const TimeOfDay(hour: 0, minute: 0),
+    );
+    if (pickedTime != null) {
+      controller.text = DateFormat.Hm().format(
+        DateTime(2023, 1, 1, pickedTime.hour, pickedTime.minute),
       );
     }
   }
 
-  void _addTimeEntry() {
-    final startTime = startTimeController.text;
-    final endTime = endTimeController.text;
+  // method to calculate total duration
+  Duration totalDuration() {
+    Duration duration = const Duration();
+    for (var entry in timeEntries) {
+      duration += entry.duration;
+    }
+    return duration;
+  }
+
+  // format of duration
+  String formatDuration(Duration duration) {
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+
+    return '$hours:$minutes Hours';
+  }
+
+  // method to add time entries to empty list of timeEntries
+  void _addEntries() {
+    final startTime = _startTimeController.text;
+    final endTime = _endTimeController.text;
+    final lime = limeWeight;
 
     if (startTime.isNotEmpty && endTime.isNotEmpty) {
       setState(() {
-        // TODO: add function to add entries to TimeEntry
-        // timeEntries.add(TimeEntry(startTime: startTime, endTime: endTime)
+        timeEntries.add(TimeEntry(startTime: startTime, endTime: endTime));
+        limeWeightEntries.add(lime);
+      });
+      _startTimeController.clear();
+      _endTimeController.clear();
+      _limeWightController.clear();
+    }
+  }
+
+  void _updateEntries(int index) {
+    final startTime = _startTimeController.text;
+    final endTime = _endTimeController.text;
+    final lime = limeWeight;
+
+    if (startTime.isNotEmpty && endTime.isNotEmpty) {
+      setState(() {
+        timeEntries[index] = TimeEntry(startTime: startTime, endTime: endTime);
+        limeWeightEntries[index] = lime;
+
+        editingIndex = null;
+        _startTimeController.clear();
+        _endTimeController.clear();
+        _limeWightController.clear();
       });
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Add Data'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: startTimeController,
-            keyboardType: TextInputType.datetime,
-            decoration: InputDecoration(
-              labelText: 'Start Time',
-              hintText: '00:00',
-              prefixIcon: IconButton(
-                onPressed: () {
-                  timePicker(context, startTimeController);
-                },
-                icon: const Icon(Icons.access_time),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          TextField(
-            controller: endTimeController,
-            keyboardType: TextInputType.datetime,
-            decoration: InputDecoration(
-              labelText: 'End Time',
-              hintText: '00:00',
-              prefixIcon: IconButton(
-                onPressed: () {
-                  timePicker(context, endTimeController);
-                },
-                icon: const Icon(Icons.access_time),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          TextField(
-            controller: limeWeightController,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Lime Weight',
-              hintText: 'Weight in Tonns',
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: () {},
-          child: const Text('Add'),
-        ),
-      ],
-    );
+  void _deleteTimeEntry(int index) {
+    setState(() {
+      timeEntries.removeAt(index);
+    });
   }
+
+  void _editTimeEntry(int index) {
+    final timeEntry = timeEntries[index];
+    setState(() {
+      editingIndex = index;
+      _startTimeController.text = timeEntry.startTime;
+      _endTimeController.text = timeEntry.endTime;
+    });
+  }
+}
+
+class TimeEntry {
+  final String startTime;
+  final String endTime;
+
+  TimeEntry({required this.startTime, required this.endTime});
+
+  Duration get duration {
+    final startDateTime = DateFormat.Hm().parse(startTime);
+    final endDateTime = DateFormat.Hm().parse(endTime);
+    return endDateTime.difference(startDateTime);
+  }
+
+  // Duration get reverseDuration {
+  //   final startDateTime = DateFormat.Hm().parse(startTime);
+  //   final endDateTime = DateFormat.Hm().parse(endTime);
+  //   return startDateTime.difference(endDateTime);
+  // }
 }

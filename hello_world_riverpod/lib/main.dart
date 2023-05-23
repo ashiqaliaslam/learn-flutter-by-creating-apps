@@ -9,7 +9,7 @@ void main() {
   // application in a "ProviderScope" sidget.
   // This is where state of out providers will be store
   runApp(
-    ProviderScope(
+    const ProviderScope(
       child: MyApp(),
     ),
   );
@@ -17,7 +17,7 @@ void main() {
 
 // Extend ConsumerWidget instead of StatelesWidget, which is exposed by Riverpod
 class MyApp extends ConsumerWidget {
-  //  MyApp({super.key});
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
